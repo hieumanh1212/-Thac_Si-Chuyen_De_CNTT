@@ -1,0 +1,4 @@
+id,query,type,ground_truth,gt_section,notes
+Q01,What is the BLEU score of the Transformer on WMT 2014 English-German?,keyword,example_paper.pdf:8,6.1 Machine Translation,VÍ DỤ - thay bằng câu hỏi thật
+Q02,How does the model handle word order without recurrence?,semantic,example_paper.pdf:6,3.5 Positional Encoding,VÍ DỤ - thay bằng câu hỏi thật
+Q03,Compare self-attention and recurrent layers in complexity and path length,synthesis,example_paper.pdf:6-7,4 Why Self-Attention,VÍ DỤ - thay bằng câu hỏi thật

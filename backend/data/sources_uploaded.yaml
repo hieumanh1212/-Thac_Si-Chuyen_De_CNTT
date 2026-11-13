@@ -1,0 +1,34 @@
+# File do giao diện web tự sinh khi upload / sửa thông tin tài liệu.
+# Giá trị ở đây được ưu tiên hơn data/sources.yaml.
+documents:
+  1712.03080v2.pdf:
+    title: 'Deep Learning for Malware Analysis: A Survey'
+    authors: Edward Raff, Jon Barker, Jared Sylvester, Robert Brandon, Bryan Catanzaro,
+      Charles Nicholas
+    year: 2017
+    venue: arXiv (arXiv:1712.03080)
+    doi_url: https://arxiv.org/pdf/1712.03080
+    short_ref: Malware Deep Learning Survey
+  1908.06478v1.pdf:
+    title: Malware Detection in Android Apps Using Machine Learning
+    authors: Marcus Vinícius Alípio, Naiara Copertino Ribeiro da Silva, Adilson Marques
+      da Cunha
+    year: 2019
+    venue: arXiv (arXiv:1908.06478)
+    doi_url: https://arxiv.org/pdf/1908.06478
+    short_ref: Android Malware MLAndroid Malware ML
+  1905.02167v2.pdf:
+    title: Applying Natural Language Processing to Information Security
+    authors: Pramod Gupta, Anil Kumar, et al.
+    year: 2019
+    venue: arXiv (arXiv:1905.02167)
+    doi_url: https://arxiv.org/pdf/1905.02167
+    short_ref: NLP for InfoSec
+  1911.02050v2.pdf:
+    title: 'Network Intrusion Detection Systems Using Deep Learning: A Systematic
+      Review'
+    authors: Tasmin Fadil, Omar Al-Jarrah, et al.
+    year: 2019
+    venue: arXiv (arXiv:1911.02050)
+    doi_url: https://arxiv.org/pdf/1911.02050
+    short_ref: NIDS Deep Learning Review

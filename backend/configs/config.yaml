@@ -1,0 +1,76 @@
+# Cấu hình toàn bộ pipeline. Mọi thí nghiệm chỉ cần sửa file này, không sửa code.
+# Đường dẫn tương đối tính từ thư mục gốc dự án.
+
+paths:
+  raw_dir: data/raw                  # đặt PDF vào đây
+  sources_file: data/sources.yaml    # metadata cấp tài liệu (tác giả, năm, DOI...) - soạn tay
+  uploaded_sources_file: data/sources_uploaded.yaml   # metadata nhập qua giao diện web (ưu tiên hơn)
+  processed_dir: data/processed
+  index_dir: data/indexes
+  eval_questions: eval/questions.csv
+  eval_results_dir: eval/results
+
+ingest:
+  remove_headers_footers: true       # bỏ header/footer lặp lại ở đầu/cuối trang
+  header_footer_min_ratio: 0.5       # lặp trên >= 50% số trang thì coi là header/footer
+  drop_references: true              # bỏ riêng mục References / Tài liệu tham khảo (giữ Phụ lục)
+  drop_toc_pages: true               # bỏ trang Mục lục / Danh mục hình / Danh mục bảng
+
+embedding:
+  # Đa ngôn ngữ (Việt + Anh), tối đa 512 token. Phương án nặng hơn nhưng mạnh hơn: BAAI/bge-m3
+  # (khi đổi sang bge-m3 thì để query_prefix/passage_prefix rỗng "").
+  model_name: intfloat/multilingual-e5-base
+  query_prefix: "query: "
+  passage_prefix: "passage: "
+  batch_size: 32
+  device: null                       # null = tự chọn (cuda nếu có)
+
+chunking:
+  strategies: [fixed, recursive, semantic]
+  min_chunk_chars: 50                # bỏ các mẩu quá ngắn (thường chỉ là tiêu đề)
+  fixed:                             # baseline: cắt theo số ký tự, không quan tâm cấu trúc
+    chunk_size: 800                  # ký tự (~150-200 từ tiếng Anh)
+    chunk_overlap: 100
+    respect_sections: false
+  recursive:                         # cắt theo đoạn -> câu -> từ, không vượt chunk_size
+    chunk_size: 800
+    chunk_overlap: 100
+    respect_sections: true           # không để chunk vắt qua 2 mục
+  semantic:                          # cắt tại điểm "đổi chủ đề" giữa các câu liên tiếp
+    breakpoint_percentile: 90        # khoảng cách cosine > phân vị 90 => điểm cắt
+    buffer_size: 1                   # gộp 1 câu trước/sau khi tính embedding câu
+    min_chars: 200
+    max_chars: 1200
+    respect_sections: true
+
+bm25:
+  tokenizer: simple                  # simple | pyvi (tách từ ghép tiếng Việt, cần cài pyvi)
+  remove_stopwords: true
+  k1: 1.5
+  b: 0.75
+
+retrieval:
+  default_strategy: recursive
+  default_mode: hybrid               # hybrid | bm25 | faiss
+  bm25_top_n: 8
+  faiss_top_n: 8
+  rrf_k: 60
+  top_k: 5
+
+llm:
+  provider: anthropic                # anthropic | openai (mọi API tương thích OpenAI)
+  model: claude-opus-5-5
+  max_tokens: 4000
+  effort: medium                     # chỉ dùng cho provider anthropic
+  temperature: 0                     # chỉ dùng cho provider openai
+  base_url: null
+
+citation:
+  # Các trường lấy từ data/sources.yaml + metadata chunk: {short_ref} {title} {authors}
+  # {year} {section} {pages} {source} ... Mỗi đề tài chỉnh lại cho đúng mẫu citation.
+  template: "{short_ref}, {section}, trang {pages}"
+
+evaluation:
+  k: 3                               # Precision@3, Recall@3, Hit@3, nDCG@3
+  retrieve_depth: 10                 # số kết quả lấy ra để tính MRR
+  modes: [bm25, faiss, hybrid]

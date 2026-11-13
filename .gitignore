@@ -1,0 +1,26 @@
+# --- Python / backend ---
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Dữ liệu sinh ra (build lại được)
+backend/data/processed/*
+backend/data/indexes/*
+backend/eval/results/*
+!backend/data/processed/.gitkeep
+!backend/data/indexes/.gitkeep
+!backend/eval/results/.gitkeep
+
+# --- Frontend ---
+node_modules/
+frontend/dist/
+frontend/.env
+
+# PDF tài liệu gốc (bản quyền của tác giả) – tải lại theo link trong data/sources*.yaml
+backend/data/raw/*
+!backend/data/raw/.gitkeep

@@ -1,0 +1,31 @@
+# --- Đọc & xử lý PDF ---
+pymupdf>=1.24
+
+# --- Embedding + tìm kiếm ---
+sentence-transformers>=3.0
+faiss-cpu>=1.8
+rank-bm25>=0.2.2
+numpy>=1.26
+
+# --- LLM (chọn 1 provider trong configs/config.yaml) ---
+anthropic>=1.0
+openai>=1.40          # dùng cho OpenAI / Gemini / Ollama qua API tương thích OpenAI
+tiktoken>=0.7         # ước lượng số token context
+
+# --- Tiện ích ---
+pyyaml>=6.0
+python-dotenv>=1.0
+pandas>=2.0
+openpyxl>=3.1
+
+# --- Backend API ---
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9   # nhận file upload
+
+# --- Kiểm thử ---
+pytest>=8.0
+httpx>=0.27           # cần cho fastapi.testclient
+
+# --- Tùy chọn: tách từ tiếng Việt cho BM25 (bm25.tokenizer: pyvi) ---
+# pyvi>=0.1.1
