@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from datetime import datetime
 from typing import Any
 
@@ -116,6 +117,8 @@ def main() -> None:
     parser.add_argument("--with-llm", action="store_true", help="Sinh câu trả lời bằng LLM (tốn API)")
     parser.add_argument("--config", default=None)
     args = parser.parse_args()
+    if hasattr(sys.stdout, "reconfigure"):          # console Windows (cp1252) không in được tiếng Việt
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     setup_logging()
     cfg = load_config(args.config)

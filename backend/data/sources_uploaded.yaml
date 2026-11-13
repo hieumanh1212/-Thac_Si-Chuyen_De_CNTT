@@ -1,34 +1,47 @@
 # File do giao diện web tự sinh khi upload / sửa thông tin tài liệu.
 # Giá trị ở đây được ưu tiên hơn data/sources.yaml.
 documents:
-  1712.03080v2.pdf:
-    title: 'Deep Learning for Malware Analysis: A Survey'
-    authors: Edward Raff, Jon Barker, Jared Sylvester, Robert Brandon, Bryan Catanzaro,
-      Charles Nicholas
-    year: 2017
-    venue: arXiv (arXiv:1712.03080)
-    doi_url: https://arxiv.org/pdf/1712.03080
-    short_ref: Malware Deep Learning Survey
-  1908.06478v1.pdf:
-    title: Malware Detection in Android Apps Using Machine Learning
-    authors: Marcus Vinícius Alípio, Naiara Copertino Ribeiro da Silva, Adilson Marques
-      da Cunha
-    year: 2019
-    venue: arXiv (arXiv:1908.06478)
-    doi_url: https://arxiv.org/pdf/1908.06478
-    short_ref: Android Malware MLAndroid Malware ML
-  1905.02167v2.pdf:
-    title: Applying Natural Language Processing to Information Security
-    authors: Pramod Gupta, Anil Kumar, et al.
-    year: 2019
-    venue: arXiv (arXiv:1905.02167)
-    doi_url: https://arxiv.org/pdf/1905.02167
-    short_ref: NLP for InfoSec
-  1911.02050v2.pdf:
-    title: 'Network Intrusion Detection Systems Using Deep Learning: A Systematic
-      Review'
-    authors: Tasmin Fadil, Omar Al-Jarrah, et al.
-    year: 2019
-    venue: arXiv (arXiv:1911.02050)
-    doi_url: https://arxiv.org/pdf/1911.02050
-    short_ref: NIDS Deep Learning Review
+  2005.12872v3.pdf:
+    title: End-to-End Object Detection with Transformers
+    authors: Nicolas Carion, Francisco Massa, Gabriel Synnaeve, Nicolas Usunier, Alexander
+      Kirillov, Sergey Zagoruyko
+    year: 2020
+    venue: ECCV 2020
+    document_type: Paper
+    doi_url: https://arxiv.org/abs/2005.12872
+    short_ref: DETR, Carion et al., 2020
+  2207.02696v1.pdf:
+    title: 'YOLOv7: Trainable bag-of-freebies sets new state-of-the-art for real-time
+      object detectors'
+    authors: Chien-Yao Wang, Alexey Bochkovskiy, Hong-Yuan Mark Liao
+    year: 2022
+    venue: CVPR 2023
+    document_type: Paper
+    doi_url: https://arxiv.org/abs/2207.02696
+    short_ref: YOLOv7, Wang et al., 2022
+  2304.08069v3.pdf:
+    title: DETRs Beat YOLOs on Real-time Object Detection
+    authors: Yian Zhao, Wenyu Lv, Shangliang Xu, Jinman Wei, Guanzhong Wang, Qingqing
+      Dang, Yi Liu, Jie Chen
+    year: 2023
+    venue: CVPR 2024
+    document_type: Paper
+    doi_url: https://arxiv.org/abs/2304.08069
+    short_ref: RT-DETR, Zhao et al., 2023
+  2402.13616v2.pdf:
+    title: 'YOLOv9: Learning What You Want to Learn Using Programmable Gradient Information'
+    authors: Chien-Yao Wang, I-Hau Yeh, Hong-Yuan Mark Liao
+    year: 2024
+    venue: ECCV 2024
+    document_type: Paper
+    doi_url: https://arxiv.org/abs/2402.13616
+    short_ref: YOLOv9, Wang et al., 2024
+  2405.14458v2.pdf:
+    title: 'YOLOv10: Real-Time End-to-End Object Detection'
+    authors: Ao Wang, Hui Chen, Lihao Liu, Kai Chen, Zijia Lin, Jungong Han, Guiguang
+      Ding
+    year: 2024
+    venue: NeurIPS 2024
+    document_type: Paper
+    doi_url: https://arxiv.org/abs/2405.14458
+    short_ref: YOLOv10, Wang et al., 2024

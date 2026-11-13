@@ -344,3 +344,40 @@ tr:last-child td { border-bottom: 0; }
 @media (max-width: 900px) {
   .compare-grid.aligned .compare-col { display: flex; flex-direction: column; grid-row: auto; }
 }
+
+/* ---- Tab So sánh: bảng tổng quan ---- */
+.cmp-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; margin: 1rem 0; }
+.cmp-switch { width: auto; min-width: 300px; }
+.compare-grid[hidden] { display: none !important; }
+.matrix-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+.cmp-matrix { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.cmp-matrix th { text-align: center; font-weight: 600; background: var(--subtle); padding: .55rem .6rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.cmp-matrix td { padding: .45rem .6rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.cmp-matrix tbody tr:hover { background: #fafbfc; }
+.cmp-matrix tr.all .m-count { color: var(--text); font-weight: 700; }
+.cmp-matrix tfoot td { background: var(--subtle); border-bottom: 0; }
+.cmp-matrix th.m-loc { text-align: left; }
+.m-loc { min-width: 260px; }
+.m-loc .doc-chip { margin-right: .4rem; }
+.m-loc .cmp-page { margin-right: .5rem; }
+.m-section { color: var(--muted); font-size: .84rem; display: inline-block; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.m-cell { text-align: center; white-space: nowrap; width: 110px; }
+.m-count { color: var(--muted); }
+.rank-dot { border: 1px solid var(--border-strong); background: var(--panel); color: var(--text); border-radius: 999px; padding: 0 .5rem; font-size: .8rem; font-weight: 600; cursor: pointer; margin: 0 .1rem; }
+.rank-dot:hover { border-color: var(--primary); color: var(--primary); }
+.rank-dot.top { background: var(--text); border-color: var(--text); color: #fff; }
+.cmp-card.flash { outline: 2px solid var(--primary); outline-offset: 2px; transition: outline-color .3s; }
+
+/* ---- Tab Thống kê (tối giản) ---- */
+.st-grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 1rem; margin-top: .5rem; }
+@media (max-width: 900px) { .st-grid { grid-template-columns: 1fr; } }
+.st-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 1.2rem 1.3rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: .2rem; }
+.st-card h3 { margin: 0; font-size: 1.2rem; }
+.st-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; margin: 1.1rem 0; }
+.st-nums div { display: flex; flex-direction: column; }
+.st-nums b { font-size: 1.6rem; line-height: 1.15; white-space: nowrap; }
+.st-nums span { font-size: .8rem; color: var(--muted); }
+.st-tags { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .9rem; min-height: 1.6rem; }
+.st-tag { font-size: .8rem; color: var(--ok); background: var(--ok-bg); border: 1px solid var(--ok-border); border-radius: 999px; padding: 1px 10px; }
+.stat-raw { margin: 1.4rem 0; }
+.stat-raw h3 { margin: 0 0 .6rem; }

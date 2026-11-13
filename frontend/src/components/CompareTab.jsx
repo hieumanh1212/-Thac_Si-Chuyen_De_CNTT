@@ -2,10 +2,10 @@ import { useMemo, useState } from "react";
 import { api, searchParams } from "../api.js";
 import { STRATEGY_INFO } from "./Sidebar.jsx";
 
-// "YOLOv7: Trainable bag-of-..." -> "YOLOv7"; tên dài không có ":" thì cắt bớt
+// "YOLOv10, Wang et al., 2024" -> "YOLOv10"; "YOLOv7: Trainable..." -> "YOLOv7"; tên dài thì cắt bớt
 function shortName(src) {
   const ref = (src?.short_ref || src?.title || src?.file || "").trim();
-  const head = ref.split(":")[0].trim();
+  const head = ref.split(/[:,]/)[0].trim();
   if (head && head.length <= 28) return head;
   return ref.length > 28 ? `${ref.slice(0, 26)}…` : ref;
 }
@@ -34,13 +34,13 @@ function CompareCard({ chunk, doc, terms, agree, total }) {
     `${chunk.text.length} ký tự`,
   ].filter(Boolean).join(" · ");
   return (
-    <article className="cmp-card">
+    <article className="cmp-card" id={`cmp-${chunk.strategy}-${chunk.rank}`}>
       <header className="cmp-head">
         <span className="cmp-rank">#{chunk.rank}</span>
         <span className="doc-chip" title={doc.full}>{doc.name}</span>
         <span className="cmp-page">tr.{chunk.pages}</span>
-        {total > 1 && agree === total && (
-          <span className="agree-badge" title="Các chiến lược khác cũng tìm ra trang này">✓ {agree}/{total}</span>
+        {total > 1 && (
+          <span className="agree-badge" title="Số chiến lược cùng tìm ra trang này">{agree}/{total}</span>
         )}
       </header>
       <div className="cmp-section" title={section}>{section || " "}</div>
@@ -55,7 +55,74 @@ function CompareCard({ chunk, doc, terms, agree, total }) {
   );
 }
 
+// Bảng tổng quan: mỗi hàng = 1 vị trí (tài liệu + trang), mỗi cột = 1 chiến lược, ô = thứ hạng
+function OverviewMatrix({ items, docOf, onPick }) {
+  const rows = useMemo(() => {
+    const map = new Map();
+    items.forEach((it) => it.results.forEach((c) => {
+      const k = placeKey(c);
+      if (!map.has(k)) map.set(k, { key: k, source: c.source, page: firstPage(c.pages), section: cleanSection(c.section), ranks: {}, best: Infinity });
+      const row = map.get(k);
+      (row.ranks[it.strategy] ??= []).push(c.rank);
+      row.best = Math.min(row.best, c.rank);
+      if (!row.section) row.section = cleanSection(c.section);
+    }));
+    const n = (r) => Object.keys(r.ranks).length;
+    return [...map.values()].sort((a, b) => n(b) - n(a) || a.best - b.best);
+  }, [items]);
+
+  const total = items.length;
+  return (
+    <div className="matrix-wrap">
+      <table className="cmp-matrix">
+        <thead>
+          <tr>
+            <th className="m-loc">Vị trí trong tài liệu</th>
+            {items.map((it) => <th key={it.strategy}>{STRATEGY_INFO[it.strategy]?.label ?? it.strategy}</th>)}
+            <th title="Số chiến lược cùng tìm ra vị trí này">Trùng</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const n = Object.keys(r.ranks).length;
+            return (
+              <tr key={r.key} className={n === total ? "all" : ""}>
+                <td className="m-loc">
+                  <span className="doc-chip">{docOf(r.source).name}</span>
+                  <span className="cmp-page">tr.{r.page}</span>
+                  <span className="m-section" title={r.section}>{r.section}</span>
+                </td>
+                {items.map((it) => {
+                  const ranks = r.ranks[it.strategy];
+                  return (
+                    <td key={it.strategy} className="m-cell">
+                      {ranks
+                        ? ranks.map((rk) => (
+                          <button key={rk} type="button" className={rk === 1 ? "rank-dot top" : "rank-dot"}
+                            title="Xem đoạn này" onClick={() => onPick(it.strategy, rk)}>#{rk}</button>))
+                        : <span className="muted">–</span>}
+                    </td>
+                  );
+                })}
+                <td className="m-cell m-count">{n}/{total}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td className="m-loc muted">Số tài liệu khác nhau trong Top-K</td>
+            {items.map((it) => <td key={it.strategy} className="m-cell"><b>{new Set(it.results.map((c) => c.source)).size}</b></td>)}
+            <td />
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
 export default function CompareTab({ settings, info }) {
+  const [mode, setMode] = useState("overview");   // overview | detail
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -114,14 +181,32 @@ export default function CompareTab({ settings, info }) {
 
       {data && view && (
         <>
-          <div className="cmp-overview muted small">
-            {view.shared > 0
-              ? <>Có <b>{view.shared}</b> trang được cả {data.items.length} chiến lược cùng tìm ra (đánh dấu ✓). </>
-              : <>Các chiến lược không trùng trang nào. </>}
-            Từ khóa trong câu hỏi được <b className="cmp-hl">in đậm</b>.
+          <div className="cmp-toolbar">
+            <div className="segmented cmp-switch">
+              <button type="button" className={mode === "overview" ? "seg selected" : "seg"} onClick={() => setMode("overview")}>Bảng tổng quan</button>
+              <button type="button" className={mode === "detail" ? "seg selected" : "seg"} onClick={() => setMode("detail")}>Chi tiết từng đoạn</button>
+            </div>
+            <span className="muted small">
+              {view.shared > 0
+                ? <><b>{view.shared}</b> vị trí được cả {data.items.length} chiến lược cùng tìm ra.</>
+                : "Các chiến lược không trùng vị trí nào."}
+              {mode === "overview" ? " Bấm vào #hạng để xem nội dung đoạn." : <> Từ khóa trong câu hỏi được <b className="cmp-hl">in đậm</b>.</>}
+            </span>
           </div>
 
-          <div className="compare-grid aligned"
+          {mode === "overview" && (
+            <OverviewMatrix items={data.items} docOf={docOf} onPick={(strategy, rank) => {
+              setMode("detail");
+              setTimeout(() => {
+                const el = document.getElementById(`cmp-${strategy}-${rank}`);
+                el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                el?.classList.add("flash");
+                setTimeout(() => el?.classList.remove("flash"), 1600);
+              }, 50);
+            }} />
+          )}
+
+          <div hidden={mode !== "detail"} className="compare-grid aligned"
             style={{ "--cols": data.items.length, "--rows": 1 + Math.max(1, ...data.items.map((it) => it.results.length)) }}>
             {data.items.map((item) => {
               const meta = STRATEGY_INFO[item.strategy] ?? { label: item.strategy, desc: "" };
