@@ -130,8 +130,8 @@ pytest                                           # unit test (gồm cả test AP
 | `gt_section` | Mục chứa đáp án (để đối chiếu trong báo cáo) |
 
 Số trang là **số trang trong file PDF** (trang trình xem PDF hiển thị), không phải số in trên giấy.
-Kết quả lưu ở `backend/eval/results/eval_<thời gian>.xlsx` (sheet `per_query`, `summary`,
-`summary_by_type`, `answers`). Metrics: Precision@3, Recall@3, Hit@3, MRR, nDCG@3, thời gian, token context.
+Kết quả lưu ở `backend/eval/results/eval_<thời gian>.xlsx` (sheet `questions`, `per_query`, `summary`,
+`summary_by_type`, `answers`), đồng thời chép thành `eval_latest.xlsx` (bản được commit lên Git). Metrics: Precision@3, Recall@3, Hit@3, MRR, nDCG@3, thời gian, token context.
 
 ## 6. Cấu trúc thư mục
 

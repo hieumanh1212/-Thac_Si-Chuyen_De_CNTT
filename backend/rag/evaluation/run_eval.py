@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import shutil
 import sys
 from datetime import datetime
 from typing import Any
@@ -107,6 +108,10 @@ def save_results(cfg: dict[str, Any], tables: dict[str, pd.DataFrame]) -> str:
         for name, df in tables.items():
             df.to_excel(writer, sheet_name=name, index=False)
     tables["summary"].to_csv(path.with_suffix(".summary.csv"), index=False, encoding="utf-8-sig")
+    # Bản sao cố định tên: được commit lên Git làm sản phẩm nộp (câu hỏi + ground truth + metrics)
+    latest = out_dir / "eval_latest.xlsx"
+    shutil.copyfile(path, latest)
+    shutil.copyfile(path.with_suffix(".summary.csv"), latest.with_suffix(".summary.csv"))
     return str(path)
 
 

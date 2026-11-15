@@ -16,9 +16,10 @@ import re
 KEYWORD_HEADINGS: set[str] = {
     # Bài báo khoa học (tiếng Anh)
     "abstract", "introduction", "related work", "related works", "background",
-    "preliminaries", "method", "methods", "methodology", "approach", "proposed method",
-    "proposed approach", "model", "model architecture", "architecture", "dataset",
-    "datasets", "data", "experiments", "experiment", "experimental setup",
+    # (không có "model", "method", "data": đó thường là tiêu đề cột của bảng kết quả)
+    "preliminaries", "methods", "methodology", "approach", "proposed method",
+    "proposed approach", "model architecture", "architecture", "dataset",
+    "datasets", "experiments", "experiment", "experimental setup",
     "experimental results", "experiments and results", "evaluation", "results",
     "results and discussion", "discussion", "analysis", "ablation study",
     "ablation studies", "limitations", "future work", "conclusion", "conclusions",
@@ -36,8 +37,12 @@ KEYWORD_HEADINGS: set[str] = {
 
 REFERENCE_HEADINGS: set[str] = {"references", "reference", "bibliography", "tài liệu tham khảo"}
 
-# "1 Introduction", "2.1. Related Work", "IV. RESULTS", "A. Appendix"
-_NUM_PREFIX = re.compile(r"^(?:\d{1,2}(?:\.\d{1,2}){0,3}\.?|[IVXLC]{1,6}\.|[A-H]\.)\s+(\S.*)$")
+# "1 Introduction", "2.1. Related Work", "IV. RESULTS", "A. Appendix", "A.1 Implementation Details"
+_NUM_PREFIX = re.compile(r"^(?:\d{1,2}(?:\.\d{1,2}){0,3}\.?|[IVXLC]{1,6}\.|[A-H](?:\.\d{1,2}){1,2}\.?|[A-H]\.)\s+(\S.*)$")
+# "A Appendix" (đánh chữ không có dấu chấm, kiểu LaTeX)
+_LETTER_APPENDIX = re.compile(r"^[A-H]\s+appendix\b", re.IGNORECASE)
+# Một mục trong danh sách tài liệu tham khảo: "12. Gu, J., Bradbury, J., ..." hoặc "[3] Bochkovskiy, A., ..."
+_BIB_ENTRY = re.compile(r"^(?:\[\d{1,3}\]|\d{1,3}\.)\s+[^\s,]+,\s+(?:[A-Z]\.|[A-Z][a-z]+\s[A-Z]\.)")
 # "Chương 2", "Điều 5.", "Mục II", "Chapter 3", "Phụ lục A"
 # (không dùng "Section"/"Part" vì dễ trùng câu văn như "Section 3 describes ...")
 _STRUCT = re.compile(
@@ -64,8 +69,10 @@ def heading_body(line: str) -> str:
 
 def is_heading(line: str) -> bool:
     s = line.strip()
-    if not s or len(s) > 90 or _CAPTION.match(s) or DOT_LEADER.search(s):
+    if not s or len(s) > 90 or _CAPTION.match(s) or DOT_LEADER.search(s) or _BIB_ENTRY.match(s):
         return False
+    if _LETTER_APPENDIX.match(s):
+        return True
 
     body = heading_body(s)
     if body.lower().rstrip(":. ") in KEYWORD_HEADINGS:
@@ -99,16 +106,53 @@ def heading_level(title: str) -> int:
     return 1   # tiêu đề từ khóa không đánh số (MỞ ĐẦU, Abstract, References...)
 
 
+_TOP_NUMBER = re.compile(r"^(\d{1,2})(?:[.\s]|$)")
+
+
+def is_appendix_heading(title: str) -> bool:
+    s = title.strip()
+    return bool(_APPENDIX.match(s) or _LETTER_APPENDIX.match(s) or re.match(r"^[A-H](?:\.\d{1,2})*\.?\s", s)
+                or heading_body(s).lower().rstrip(":. ") in {"appendix", "phụ lục"}
+                or re.match(r"^(?:appendix|phụ lục)\b", s, re.IGNORECASE))
+
+
 def find_sections(text: str) -> list[tuple[int, str]]:
-    """Tìm tiêu đề trong text đã làm sạch (mỗi tiêu đề là một đoạn riêng)."""
+    """Tìm tiêu đề trong text đã làm sạch (mỗi tiêu đề là một đoạn riêng).
+
+    Tiêu đề đánh số phải đi đúng thứ tự: số mục cấp 1 chỉ được giữ nguyên hoặc tăng 1
+    (3 -> 3.1 -> 4). Nhờ vậy loại được chú thích chân trang ("2 The input images...")
+    và các dòng đánh số lẻ khác nằm giữa văn bản. Gặp Phụ lục thì đếm lại từ đầu.
+    """
     sections: list[tuple[int, str]] = []
+    current: int | None = None          # số mục cấp 1 gần nhất
     pos = 0
     for para in text.split("\n\n"):
         stripped = para.strip()
         if stripped and "\n" not in stripped and is_heading(stripped):
+            m = _TOP_NUMBER.match(stripped)
+            if m:
+                n = int(m.group(1))
+                if current is not None and not current <= n <= current + 1:
+                    pos += len(para) + 2
+                    continue
+                current = n
+            elif is_appendix_heading(stripped):
+                current = None
             sections.append((pos + para.find(stripped), stripped))
         pos += len(para) + 2
     return sections
+
+
+_REFERENCES_PARA = re.compile(
+    r"(?:^|\n\n)[ \t]*(?:\d{1,2}\.?\s+|[IVX]{1,4}\.\s+)?(?:references|reference|bibliography|tài liệu tham khảo)"
+    r"[ \t:.]*(?=\n\n|$)", re.IGNORECASE)
+
+
+def find_references_start(text: str, min_ratio: float = 0.3) -> int | None:
+    """Vị trí dòng tiêu đề 'References' (đứng riêng một đoạn) cuối cùng, nằm sau `min_ratio` văn bản."""
+    starts = [m.start() + (2 if m.group(0).startswith("\n\n") else 0) for m in _REFERENCES_PARA.finditer(text)]
+    starts = [s for s in starts if s >= min_ratio * len(text)]
+    return starts[-1] if starts else None
 
 
 def is_toc_page(page_text: str, min_entries: int = 3) -> bool:

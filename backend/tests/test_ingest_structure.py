@@ -60,3 +60,49 @@ def test_remove_range_keeps_appendix():
     assert [p for _, _, p in doc.page_spans] == [25, 27]
     assert doc.section_spans == [(p2, "PHỤ LỤC: PHÂN CÔNG")]
     assert doc.page_at(doc.text.index("Toàn")) == 27
+
+
+# ---------------- bài báo khoa học: References, phụ lục, tiêu đề giả ----------------
+from rag.ingest.pdf_loader import drop_reference_section  # noqa: E402
+from rag.ingest.section_detector import find_references_start, find_sections  # noqa: E402
+
+
+def _doc(paras: list[str]) -> Document:
+    text = "\n\n".join(paras)
+    return Document("p.pdf", text, [(0, len(text), 1)], find_sections(text))
+
+
+def test_bibliography_entry_and_table_header_are_not_headings():
+    assert not is_heading("1. Al-Rfou, R., Choe, D., Constant, N., Guo, M., Jones, L.: Character-level language")
+    assert not is_heading("12. Gu, J., Bradbury, J., Xiong, C., Li, V.O., Socher, R.: Non-autoregressive")
+    assert not is_heading("Model")
+    assert is_heading("A Appendix")
+    assert is_heading("A.1 Implementation Details")
+    assert is_heading("B. More Comparison")
+
+
+def test_numbered_headings_must_follow_order():
+    text = "\n\n".join(["3 Method", "Body text here.", "3.1 Loss", "2 The input images are batched together",
+                        "Footnote-like line above.", "4 Experiments", "5 Conclusion"])
+    assert [t for _, t in find_sections(text)] == ["3 Method", "3.1 Loss", "4 Experiments", "5 Conclusion"]
+
+
+def test_drop_references_keeps_appendix():
+    doc = _doc(["1 Introduction", "Detectors are fast. " * 30, "2 Conclusion", "We conclude.", "References",
+                "1. Al-Rfou, R., Choe, D.: Character-level language modeling",
+                "12. Gu, J., Bradbury, J.: Non-autoregressive translation", "A Appendix", "A.1 Losses", "Box loss."])
+    assert find_references_start(doc.text) is not None
+    assert drop_reference_section(doc)
+    assert "Al-Rfou" not in doc.text and "Gu, J." not in doc.text
+    assert doc.text.endswith("We conclude.\n\nA Appendix\n\nA.1 Losses\n\nBox loss.")
+
+
+def test_drop_references_until_end_without_appendix():
+    doc = _doc(["1 Introduction", "Detectors are fast. " * 30, "References", "[1] Bochkovskiy, A.: YOLOv4"])
+    assert drop_reference_section(doc)
+    assert "YOLOv4" not in doc.text and doc.text.startswith("1 Introduction")
+
+
+def test_reference_word_inside_sentence_is_ignored():
+    doc = _doc(["1 Introduction", "See [40] for references in the context of vision. " * 20])
+    assert not drop_reference_section(doc)

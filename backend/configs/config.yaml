@@ -50,7 +50,9 @@ bm25:
   b: 0.75
 
 retrieval:
-  default_strategy: recursive
+  # Chọn theo kết quả đánh giá (eval/results/eval_latest.xlsx): semantic + hybrid có
+  # Recall@3 = 0.689, Hit@3 = 0.800 - cao nhất trong 9 cấu hình (3 chiến lược x 3 mode).
+  default_strategy: semantic
   default_mode: hybrid               # hybrid | bm25 | faiss
   bm25_top_n: 8
   faiss_top_n: 8

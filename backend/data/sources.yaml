@@ -3,26 +3,19 @@
 # - short_ref được dùng trong citation (xem citation.template trong configs/config.yaml).
 # - PDF không khai báo ở đây vẫn được nạp, khi đó title = tên file.
 #
+documents: {}
+# Metadata 5 bài báo của đề tài nằm trong data/sources_uploaded.yaml (nhập qua giao diện web).
+
 # Ví dụ cho Đề 3 (bài báo khoa học):
-documents:
-  # File đang dùng để test giao diện (thông tin lấy từ trang bìa)
-  "Nhom 1 -Báo cáo Thực hành - Big Data.pdf":
-    title: "Báo cáo thực hành Lưu trữ và xử lý dữ liệu lớn - Thống kê đơn hàng thương mại điện tử"
-    authors: "Nhóm 1"
-    year: 2026
-    course: "Lưu trữ và xử lý dữ liệu lớn"
-    document_type: "Report"
-    short_ref: "Nhóm 1, Báo cáo Big Data, 2026"
-
-  example_paper.pdf:
-    title: "Attention Is All You Need"
-    authors: "Vaswani et al."
-    year: 2017
-    venue: "NeurIPS"
-    document_type: "Paper"
-    doi_url: "https://arxiv.org/abs/1706.03762"
-    short_ref: "Vaswani et al., 2017"
-
+#   example_paper.pdf:
+#     title: "Attention Is All You Need"
+#     authors: "Vaswani et al."
+#     year: 2017
+#     venue: "NeurIPS"
+#     document_type: "Paper"
+#     doi_url: "https://arxiv.org/abs/1706.03762"
+#     short_ref: "Vaswani et al., 2017"
+#
 # Ví dụ cho Đề 1 (giáo trình):
 #   giao_trinh_ml.pdf:
 #     title: "Giáo trình Học máy"

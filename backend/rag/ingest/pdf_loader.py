@@ -15,7 +15,8 @@ import yaml
 
 from rag.config import resolve_path
 from rag.ingest.cleaner import clean_blocks, normalize_unicode
-from rag.ingest.section_detector import REFERENCE_HEADINGS, find_sections, heading_body, is_toc_page
+from rag.ingest.section_detector import (find_references_start, find_sections, is_appendix_heading,
+                                         is_toc_page)
 from rag.schemas import Document
 
 logger = logging.getLogger(__name__)
@@ -59,18 +60,85 @@ def remove_headers_footers(
     return [[b for b in blocks if not (in_margin(b) and _hf_key(b[0]) in repeated)] for blocks in pages]
 
 
+# Phần đánh số đứng trước tên mục trong văn bản: "4.2. ", "A.1 ", "B. ", "IV. "
+_HEADING_NUMBER = re.compile(r"^(?:\d{1,2}(?:\.\d{1,2}){0,3}|[A-H](?:\.\d{1,2}){0,2}|[IVX]{1,4})?\.?\s*$")
+
+
+def _find_heading_line(text: str, body: str, start: int, end: int) -> tuple[int, str] | None:
+    """Tìm đoạn (dòng riêng) là tiêu đề có tên `body` trong text[start:end].
+
+    Trả về (offset, tiêu đề đầy đủ kèm số mục như trong văn bản). Chấp nhận tiêu đề bị
+    xuống dòng (đoạn chỉ chứa phần đầu của tên mục, tối thiểu 20 ký tự). Ưu tiên dòng có
+    số mục (tên mục không số có thể chỉ là nhãn trong hình vẽ)."""
+    low_body = body.lower()
+    candidates: list[tuple[int, str, bool]] = []
+    pos = start
+    for para in text[start:end].split("\n\n"):
+        line = para.strip()
+        if line and "\n" not in line and len(line) <= len(body) + 12:
+            low = line.lower()
+            i = len(low) - len(low_body) if low.rstrip(" .:").endswith(low_body) else -1
+            if i != -1:
+                i = low.rstrip(" .:").rfind(low_body)
+            if i == -1 and len(low) >= 20:                      # tiêu đề bị cắt xuống dòng
+                j = next((k for k in range(min(8, len(low))) if low_body.startswith(low[k:])), -1)
+                i = j if j != -1 and len(low) - j >= 20 else -1
+            if i != -1 and _HEADING_NUMBER.match(line[:i]):
+                prefix = line[:i].strip()
+                candidates.append((pos + para.find(line), f"{prefix} {body}" if prefix else body, bool(prefix)))
+        pos += len(para) + 2
+    numbered = [c for c in candidates if c[2]]
+    if numbered or candidates:
+        off, title, _ = (numbered or candidates)[0]
+        return off, title
+    # Dự phòng: tiêu đề bị dính vào cuối đoạn văn trước, vd "... new generation. 2.2. Reversible Architectures"
+    m = re.compile(r"(?<=\s)(\d{1,2}(?:\.\d{1,2}){0,3}\.?)\s+" + re.escape(body) + r"(?=\n\n)",
+                   re.IGNORECASE).search(text, start, end)
+    return (m.start(), f"{m.group(1)} {body}") if m else None
+
+
 def _toc_sections(doc: pymupdf.Document, text: str, page_spans: list[tuple[int, int, int]]) -> list[tuple[int, str]]:
-    """Lấy mục từ bookmark/TOC của PDF và định vị offset trong text."""
+    """Lấy mục từ bookmark/TOC của PDF và định vị offset trong text.
+
+    - Bookmark của nhiều bài LaTeX mất số mục (". Introduction") => lấy lại số mục từ văn bản.
+    - Tìm tiêu đề trên đúng trang của bookmark, không thấy thì tìm tiếp phía sau mục trước
+      (bookmark phụ lục đôi khi ghi sai số trang). Vẫn không thấy thì bỏ qua bookmark đó.
+    """
     span_by_page = {p: (s, e) for s, e, p in page_spans}
     sections: list[tuple[int, str]] = []
+    last = 0
     for _level, title, page_no in doc.get_toc(simple=True):
-        title = " ".join(normalize_unicode(title).split())
-        if not title or page_no not in span_by_page:
+        body = " ".join(normalize_unicode(title).split()).lstrip(".:-–  ").strip()
+        if not body:
             continue
-        s, e = span_by_page[page_no]
-        idx = text.lower().find(title.lower(), s, e)
-        sections.append((idx if idx != -1 else s, title))
-    return sorted(sections)
+        found = None
+        if page_no in span_by_page:
+            s, e = span_by_page[page_no]
+            if e > last:
+                found = _find_heading_line(text, body, max(s, last), e)
+        if found is None:
+            found = _find_heading_line(text, body, last, len(text))
+        if found is None:
+            logger.debug("Không định vị được bookmark %r (trang %s)", body, page_no)
+            continue
+        sections.append(found)
+        last = found[0] + 1
+    return sections
+
+
+def drop_reference_section(document: Document) -> bool:
+    """Xóa mục References: từ dòng tiêu đề 'References' tới tiêu đề mục kế tiếp (thường là
+    Phụ lục) hoặc tới hết tài liệu. Phụ lục phía sau được giữ lại."""
+    start = find_references_start(document.text)
+    if start is None:
+        return False
+    end = next((off for off, _ in document.section_spans if off > start), None)
+    if end is None:      # không có mục nào phía sau => tìm tiêu đề phụ lục ngay trong văn bản
+        end = next((off for off, title in find_sections(document.text[start:])
+                    if off > 0 and is_appendix_heading(title)), None)
+        end = start + end if end is not None else len(document.text)
+    document.remove_range(start, end)
+    return True
 
 
 def load_pdf(
@@ -121,13 +189,8 @@ def load_pdf(
     document = Document(source=nfc(path.name), text=text, page_spans=page_spans,
                         section_spans=sections, meta=doc_meta)
 
-    if drop_references:
-        # Chỉ xóa riêng mục References (tới tiêu đề kế tiếp), giữ lại Phụ lục phía sau
-        for i, (offset, title) in enumerate(document.section_spans):
-            if heading_body(title).lower().rstrip(":. ") in REFERENCE_HEADINGS and offset > 0.3 * len(text):
-                nxt = document.section_spans[i + 1][0] if i + 1 < len(document.section_spans) else len(document.text)
-                document.remove_range(offset, nxt)
-                break
+    if drop_references and not drop_reference_section(document):
+        logger.info("%s: không tìm thấy mục References.", path.name)
 
     if not document.text:
         logger.warning("%s: không trích xuất được chữ (có thể là PDF scan, cần OCR).", path.name)
