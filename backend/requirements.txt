@@ -23,6 +23,12 @@ fastapi>=0.115
 uvicorn[standard]>=0.30
 python-multipart>=0.0.9   # nhận file upload
 
+# --- Notebook trình bày pipeline (backend/notebooks/pipeline.ipynb) ---
+ipykernel>=6.29
+matplotlib>=3.8
+nbformat>=5.10
+nbclient>=0.10
+
 # --- Kiểm thử ---
 pytest>=8.0
 httpx>=0.27           # cần cho fastapi.testclient

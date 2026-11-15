@@ -133,6 +133,12 @@ Số trang là **số trang trong file PDF** (trang trình xem PDF hiển thị)
 Kết quả lưu ở `backend/eval/results/eval_<thời gian>.xlsx` (sheet `questions`, `per_query`, `summary`,
 `summary_by_type`, `answers`), đồng thời chép thành `eval_latest.xlsx` (bản được commit lên Git). Metrics: Precision@3, Recall@3, Hit@3, MRR, nDCG@3, thời gian, token context.
 
+### Notebook trình bày pipeline (`backend/notebooks/pipeline.ipynb`)
+
+Đi qua từng bước: đọc PDF → làm sạch → chunking → embedding → BM25/FAISS → RRF → đánh giá, có bảng và biểu
+đồ ở mỗi bước. File đã lưu sẵn kết quả chạy nên mở trên GitHub là xem được ngay. Muốn chạy lại: mở bằng VS Code
+(extension *Jupyter*), chọn kernel `.venv`, bấm *Run All* (cần đã build index; mất khoảng 1-2 phút).
+
 ## 6. Cấu trúc thư mục
 
 ```
@@ -159,7 +165,10 @@ hybrid-rag/
 │   │   ├── sources.yaml             # metadata cấp tài liệu
 │   │   ├── processed/               # documents.jsonl
 │   │   └── indexes/<strategy>/      # chunks.jsonl, faiss.npy, bm25.pkl, meta.json
-│   ├── eval/questions.csv           # bộ câu hỏi đánh giá
+│   ├── eval/
+│   │   ├── questions.csv            # bộ câu hỏi đánh giá
+│   │   └── results/eval_latest.xlsx # kết quả đánh giá mới nhất (câu hỏi + ground truth + metrics)
+│   ├── notebooks/pipeline.ipynb     # notebook trình bày toàn bộ pipeline xử lý dữ liệu
 │   ├── tests/                       # unit test
 │   ├── requirements.txt
 │   └── .env.example
