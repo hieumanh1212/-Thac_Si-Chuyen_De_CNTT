@@ -60,7 +60,7 @@ button { font: inherit; }
   padding: 1.4rem 1.2rem 2rem;
   position: sticky; top: 0; height: 100vh; overflow-y: auto;
 }
-.main { padding: 1.8rem 2.5rem 3rem; min-width: 0; max-width: 1200px; }
+.main { padding: 1.8rem 2.5rem 3rem; min-width: 0; }   /* chiếm hết phần còn lại của màn hình */
 .page-head { margin-bottom: 1rem; }
 .page-head p { margin: .2rem 0 0; }
 

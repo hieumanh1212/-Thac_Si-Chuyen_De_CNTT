@@ -119,6 +119,11 @@ python -m rag.evaluation.run_eval --with-llm     # thêm câu trả lời LLM đ
 pytest                                           # unit test (gồm cả test API)
 ```
 
+`--with-llm` mặc định chỉ sinh câu trả lời cho chiến lược mặc định (`retrieval.default_strategy`, 15 lần gọi),
+vì gói Gemini miễn phí giới hạn **20 lần gọi/ngày/model**. Muốn chạy cả 3 chiến lược: `--llm-strategies all`
+(45 lần gọi, cần gói trả phí hoặc chia nhiều ngày). Hết quota ngày thì chương trình dừng gọi LLM và ghi
+"LỖI" ở các câu còn lại; metrics truy xuất vẫn đầy đủ.
+
 ### Bộ câu hỏi đánh giá (`backend/eval/questions.csv`)
 
 | Cột | Ý nghĩa |

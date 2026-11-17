@@ -49,3 +49,48 @@ def test_citation_label_and_render():
     assert no_section == "B, trang 2-3"
     rendered = render_citations("Đạt 91,2% [1]. Nhanh hơn [1, 2]. Năm [2017].", [label, no_section])
     assert rendered == (f"Đạt 91,2% [{label}]. Nhanh hơn [{label}][{no_section}]. Năm [2017].")
+
+
+# ---------------- gọi LLM khi đánh giá: thử lại khi vượt giới hạn (429) ----------------
+import pytest  # noqa: E402
+
+from rag.evaluation.run_eval import DailyQuotaExceeded, ask_with_retry  # noqa: E402
+
+
+class _RateLimited(Exception):
+    status_code = 429
+
+
+class _FakePipe:
+    def __init__(self, fail_times: int, exc: Exception) -> None:
+        self.calls, self.fail_times, self.exc = 0, fail_times, exc
+
+    def ask(self, *args, **kwargs):
+        self.calls += 1
+        if self.calls <= self.fail_times:
+            raise self.exc
+        return "ok"
+
+
+def test_ask_with_retry_recovers_from_rate_limit():
+    pipe = _FakePipe(2, _RateLimited("Error code: 429"))
+    assert ask_with_retry(pipe, "q", "semantic", 5, waits=(0, 0, 0)) == "ok"
+    assert pipe.calls == 3
+
+
+def test_ask_with_retry_gives_up_and_does_not_retry_other_errors():
+    with pytest.raises(_RateLimited):
+        ask_with_retry(_FakePipe(9, _RateLimited("429")), "q", "semantic", 5, waits=(0, 0))
+    other = _FakePipe(1, ValueError("bad request"))
+    with pytest.raises(ValueError):
+        ask_with_retry(other, "q", "semantic", 5, waits=(0, 0))
+    assert other.calls == 1
+
+
+def test_ask_with_retry_stops_immediately_on_daily_quota():
+    exc = _RateLimited("Error code: 429")
+    exc.body = [{"error": {"message": "Generate content requests per day limit exceeded on Free Tier"}}]
+    pipe = _FakePipe(9, exc)
+    with pytest.raises(DailyQuotaExceeded):
+        ask_with_retry(pipe, "q", "semantic", 5, waits=(0, 0, 0))
+    assert pipe.calls == 1

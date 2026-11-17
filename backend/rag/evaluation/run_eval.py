@@ -17,6 +17,7 @@ import argparse
 import logging
 import shutil
 import sys
+import time
 from datetime import datetime
 from typing import Any
 
@@ -41,8 +42,48 @@ def load_questions(cfg: dict[str, Any]) -> pd.DataFrame:
     return df
 
 
+def _error_text(exc: Exception) -> str:
+    return f"{exc} {getattr(exc, 'body', '')}"   # SDK openai: chi tiết lỗi nằm trong .body
+
+
+def _is_rate_limit(exc: Exception) -> bool:
+    text = _error_text(exc)
+    return getattr(exc, "status_code", None) == 429 or "429" in text or "rate limit" in text.lower()
+
+
+def _is_daily_quota(exc: Exception) -> bool:
+    """Hết quota theo NGÀY (vd. Gemini free tier: 20 lần/ngày/model) - chờ vài phút cũng vô ích."""
+    text = _error_text(exc).lower()
+    return _is_rate_limit(exc) and ("per day" in text or "perday" in text)
+
+
+class DailyQuotaExceeded(RuntimeError):
+    pass
+
+
+def ask_with_retry(pipe: RAGPipeline, question: str, strategy: str, top_k: int,
+                   delay: float = 0.0, waits: tuple[int, ...] = (20, 40, 60, 90)) -> Any:
+    """Gọi LLM, nghỉ `delay` giây trước mỗi lần gọi (gói API miễn phí giới hạn số lần gọi/phút).
+    Gặp lỗi 429 theo phút thì chờ lâu dần rồi thử lại; hết quota ngày thì dừng hẳn; lỗi khác báo ngay."""
+    for attempt in range(len(waits) + 1):
+        if delay:
+            time.sleep(delay)
+        try:
+            return pipe.ask(question, strategy=strategy, mode="hybrid", top_k=top_k)
+        except Exception as exc:
+            if _is_daily_quota(exc):
+                raise DailyQuotaExceeded("Hết quota gọi LLM trong ngày (gói miễn phí) - thử lại sau") from exc
+            if not _is_rate_limit(exc) or attempt == len(waits):
+                raise
+            logger.warning("Vượt giới hạn gọi API (429) - chờ %ds rồi thử lại...", waits[attempt])
+            time.sleep(waits[attempt])
+
+
 def evaluate(cfg: dict[str, Any], strategies: list[str] | None = None, modes: list[str] | None = None,
-             with_llm: bool = False, pipeline: RAGPipeline | None = None) -> dict[str, pd.DataFrame]:
+             with_llm: bool = False, pipeline: RAGPipeline | None = None,
+             llm_delay: float = 0.0, llm_strategies: list[str] | None = None) -> dict[str, pd.DataFrame]:
+    """llm_strategies: chiến lược được sinh câu trả lời LLM (mặc định: chỉ chiến lược mặc định
+    trong config, để 15 câu vừa quota miễn phí; truyền ["all"] để chạy mọi chiến lược)."""
     pipe = pipeline or RAGPipeline(cfg)
     ecfg = cfg.get("evaluation", {})
     k = ecfg.get("k", 3)
@@ -52,6 +93,11 @@ def evaluate(cfg: dict[str, Any], strategies: list[str] | None = None, modes: li
     if not strategies:
         raise RuntimeError("Chưa có index nào. Chạy: python -m rag.indexing.build_index")
     questions = load_questions(cfg)
+    if not llm_strategies:
+        llm_strategies = [cfg["retrieval"].get("default_strategy") or strategies[0]]
+    elif "all" in llm_strategies:
+        llm_strategies = list(strategies)
+    quota_out = False
 
     rows, answer_rows = [], []
     for strategy in strategies:
@@ -73,12 +119,15 @@ def evaluate(cfg: dict[str, Any], strategies: list[str] | None = None, modes: li
                     "ground_truth": q.ground_truth,
                 })
 
-            if with_llm:
+            if with_llm and strategy in llm_strategies:
                 try:
-                    ans = pipe.ask(q.query, strategy=strategy, mode="hybrid", top_k=cfg["retrieval"].get("top_k", 5))
+                    if quota_out:
+                        raise DailyQuotaExceeded("bỏ qua - đã hết quota LLM trong ngày")
+                    ans = ask_with_retry(pipe, q.query, strategy, cfg["retrieval"].get("top_k", 5), llm_delay)
                     answer, rendered, tokens = ans.answer, ans.answer_rendered, ans.context_tokens
                     llm_ms = round(ans.timings_ms.get("llm", 0.0), 1)
                 except Exception as exc:  # lỗi API không làm hỏng cả lượt đánh giá
+                    quota_out = quota_out or isinstance(exc, DailyQuotaExceeded)
                     logger.error("LLM lỗi ở %s/%s: %s", strategy, q.id, exc)
                     answer, rendered, tokens, llm_ms = f"LỖI: {exc}", "", 0, 0.0
                 answer_rows.append({
@@ -120,6 +169,11 @@ def main() -> None:
     parser.add_argument("--strategies", nargs="*", default=None, help="Mặc định: mọi chiến lược đã có index")
     parser.add_argument("--modes", nargs="*", default=None, help="bm25 faiss hybrid")
     parser.add_argument("--with-llm", action="store_true", help="Sinh câu trả lời bằng LLM (tốn API)")
+    parser.add_argument("--llm-delay", type=float, default=6.0,
+                        help="Số giây nghỉ trước mỗi lần gọi LLM (mặc định 6 => tối đa ~10 lần/phút, hợp gói miễn phí)")
+    parser.add_argument("--llm-strategies", nargs="*", default=None,
+                        help="Chiến lược được sinh câu trả lời LLM. Mặc định: chỉ default_strategy (15 câu, "
+                             "vừa quota miễn phí 20 lần/ngày); 'all' = mọi chiến lược")
     parser.add_argument("--config", default=None)
     args = parser.parse_args()
     if hasattr(sys.stdout, "reconfigure"):          # console Windows (cp1252) không in được tiếng Việt
@@ -127,7 +181,8 @@ def main() -> None:
 
     setup_logging()
     cfg = load_config(args.config)
-    tables = evaluate(cfg, args.strategies, args.modes, args.with_llm)
+    tables = evaluate(cfg, args.strategies, args.modes, args.with_llm, llm_delay=args.llm_delay,
+                      llm_strategies=args.llm_strategies)
     path = save_results(cfg, tables)
     with pd.option_context("display.width", 200, "display.max_columns", 20):
         print(tables["summary"].to_string(index=False))
